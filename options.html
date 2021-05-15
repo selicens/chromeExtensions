@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>options</title>
+</head>
+<body>
+    <script>
+        window.onload = function () {
+            navigator.mediaDevices.getUserMedia = navigator.mediaDevices.getUserMedia ||
+                navigator.mediaDevices.webkitGetUserMedia ||
+                navigator.mediaDevices.mozGetUserMedia ||
+                navigator.mediaDevices.msGetUserMedia;
+            if (navigator.getUserMedia) {
+                console.log('支持')
+            } else {
+                console.log('不支持')
+            }
+            navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then( ).catch( );
+        }
+    </script>
+</body>
+</html>

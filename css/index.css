@@ -1,0 +1,41 @@
+.call-content {
+    border: 1px solid #e6ebf5;
+    transform-origin: center top 0px;
+    color: #606266;
+    width:250px;
+    padding: 20px;
+}
+.call-keys{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.call-key button {
+    border-radius: 50%;
+    font-size: 22px;
+    width: 44px;
+    height: 44px;
+}
+.call-keys .call {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+}
+.call-key {
+    border-radius: 50px;
+    margin: 5px 10px;
+}
+.center {
+    display: flex;
+    justify-content: center;
+}
+.dial{
+    font-size: 44px;
+    color: rgb(19, 206, 102);
+    cursor: pointer;
+}
+.dials{
+    font-size: 44px;
+    color: rgb(255,0,0);
+    cursor: pointer;
+}

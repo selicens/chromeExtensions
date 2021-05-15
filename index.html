@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title></title>
+		<script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js"></script>
+		<!-- 引入样式 -->
+		<link rel="stylesheet" href="https://at.alicdn.com/t/font_426662_rrhalvwppiafw29.css">
+		<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+		<!-- 引入组件库 -->
+		<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+		<script src="js/sip-0.7.8.js"></script>
+		<script src="js/event-bus.js"></script>
+
+		<link rel="stylesheet" href="./css/index.css">
+	</head>
+	<body>
+		<div style="display: none" >
+			<video id="huaqiRemoteVideo"></video>
+			<video id="huaqiLocalVideo" muted="muted"></video>
+		</div>
+		<div id="app">
+			<template>
+				<div class="call-content">
+					<div>
+						<div class="center">
+							<i class="yc-iconfont yc-icon-btn-bohao dial"></i>
+						</div>
+					</div>
+					<div>
+						<div v-if="'normal' == currentStatusName">
+							<div style="margin-bottom:10px">
+								<el-input v-model="callPhone" id="___input_phone" placeholder="请输入电话号码"></el-input>
+							</div>
+							<div class="call-keys">
+								<div class="call-key"
+									 v-for="key in callKeys">
+									<el-button @click="clickKey(key)" style="padding: 0px 0px;">
+										<div v-if="'*' == key" style="padding-top: 6px;padding-left: 0px;">
+											{{key}}
+										</div>
+										<div v-else>
+											{{key}}
+										</div>
+									</el-button>
+								</div>
+								<div class="call">
+									<i @click="call" class="yc-iconfont yc-icon-btn-bohao dial"></i>
+								</div>
+							</div>
+						</div>
+						<div v-if="'inviting' == currentStatusName" style="text-align:center">
+							<h1>
+								{{nSelfInfo.phone}}
+							</h1>
+							<h3>
+								{{nSelfInfo.name}}
+							</h3>
+							<div>
+								拨号中...
+							</div>
+							<div class="call" style="margin-top:20px">
+								<i @click="callCancel" class="yc-iconfont yc-icon-btn-bohao dials"></i>
+							</div>
+						</div>
+					</div>
+				</div>
+			</template>
+		</div>
+		<script>
+			//webrtc sip 配置初始化
+			var session
+			var userAgent
+			var options = {
+				media: {
+					constraints: {
+						audio: true,
+						video: false
+					},
+					render: {
+						remote: document.getElementById('huaqiRemoteVideo'),
+						local: document.getElementById('huaqiLocalVideo')
+					}
+				},
+
+			};
+		    var app = new Vue({
+		        el: '#app',
+		        data: {
+					isMute: false,
+					showKeyboard: false,
+					callback: null,
+					callPhone: '',
+					callKeys: [
+						"1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"
+					],
+					selfInfo: {},
+					nSelfInfo: {
+						phone: '',
+						name: '',
+						city: '',
+						time: 0
+					},
+					callTime: 0,
+					isShowCall: false,
+					optStatus: {
+						"normal": {
+							"text": "在线",
+							"class": "yc-icon-bohao",
+							"style": "color:#13CE66;width:15px;",
+						},
+						"logout": {
+							"text": "离线",
+							"class": "yc-icon-bohao",
+							"style": "",
+						}
+					},
+					status: {
+						"normal": {
+							"text": "在线",
+							"class": "yc-icon-bohao",
+							"style": "fill:#13CE66;width:18px;height:18px",
+
+						},
+						"calling": {
+							"text": "通话中",
+							"class": "yc-icon-bohao",
+							"style": "fill:#13CE66;width:18px;height:18px"
+						},
+						"inviting": {
+							"text": "呼叫中",
+							"class": "yc-icon-bohao",
+							"style": "fill:#13CE66;width:18px;height:18px"
+						},
+						"newcall": {
+							"text": "新来电",
+							"class": "yc-icon-bohao",
+							"style": "fill:#f00;width:18px;height:18px"
+						},
+						"logout": {
+							"text": "离线",
+							"class": "yc-icon-bohao",
+							"style": "fill:#fff;width:18px;height:18px",
+
+						}
+					},
+					dmtf: "",
+					ringStream: null,
+					ringAudio: null,
+					currentStatusName: "logout",
+//                currentStatusName: "calling",
+					invitingAudio: null,
+					timeCallingId: -1,
+					ringingAudio: null
+		        },
+				mounted(){
+					var _this = this
+					/* var userObj = {
+                        // hackIpInContact:'47.52.157.91',
+                        traceSIP: true,
+                        wsServers: ['wss://call.jiuhutongxun.com:7443'],
+                        password: '095688',
+                        uri: '18080055887@call.jiuhutongxun.com',
+                        displayName: '18080055887',
+                        iceCheckingTimeout: 1000,
+                        noAnswerTimeout: 60,
+                        stunServers: [],
+                        turnServers: [],
+                    } */
+					var userObj = {
+						// hackIpInContact:'47.52.157.91',
+						traceSIP: true,
+						wsServers: ['wss://call.jiuhutongxun.com:7443'],
+						password: 'test123',
+						uri: 'test123@call.jiuhutongxun.com',
+						displayName: 'test123',
+						iceCheckingTimeout: 1000,
+						noAnswerTimeout: 60,
+						/*stunServers: [],
+						turnServers: [],*/
+					}
+					// var userObj = {
+					//     // hackIpInContact:'yc1.voiper.cn',
+					//     traceSIP: true,
+					//     wsServers: ['wss://sipjs.voiper.cn:10443'],
+					//     password: 'e6ca8ee2e897e394501740769467da151a8ab7d34eb517533a4c6d68',
+					//     uri: '15982324005@yc1.voiper.cn',
+					//     displayName: '15982324005',
+					//     iceCheckingTimeout: 1000,
+					//     noAnswerTimeout: 60,
+					//     stunServers: [],
+					//     turnServers: [],
+					// }
+
+					this.selfInfo = {
+						phone: userObj.displayName
+					}
+					console.log('ua:', userObj)
+					userAgent = new SIP.UA(userObj);
+					//注册软交换成功
+					userAgent.on('registered', function () {
+						if ("logout" === _this.currentStatusName) {
+							_this.currentStatusName = "normal"
+						}
+					});
+					//新来电
+					userAgent.on('invite', (incomingSession, serverContext) => {
+						session = incomingSession;
+						this.searchRemoteUserInfo(session.remoteIdentity)
+						console.log('新来电', session.remoteIdentity)
+						_this.currentStatusName = "newcall"
+						_this.isShowCall = true
+						_this.sessionMonitor(session)
+					});
+
+					//注册软交换失败
+					userAgent.on('registrationFailed', function () {
+						_this.currentStatusName = "logout"
+					});
+					window.userAgent = userAgent
+				},
+
+				methods:{
+					//通话按键
+					clickDmtfKey(key) {
+						this.dmtf += key
+						session.dtmf(key)
+					},
+					//挂断
+					callCancel() {
+						//挂断
+						if ("inviting" === this.currentStatusName) {
+							session.cancel()
+						} else if ("newcall" === this.currentStatusName) {
+							session.reject()
+						} else {
+							session.bye();
+						}
+						this.callPhone = ""
+						this.dmtf = ""
+						this.currentStatusName = "normal"
+
+						console.log('挂断')
+					},
+					//呼叫号码
+					call() {
+						if (null === this.callPhone) {
+							this.$message("请输入手机号")
+							return
+						}else{
+							this.callPhone = this.callPhone.replace(/\s/g,"").replace(/\-/g,"")//将空格和-全部替换为空
+							if(this.callPhone.length === 0 ){
+								this.$message("请输入号码")
+								return
+							}
+							if(!/^[0-9a-zA-Z_]+$/.test(this.callPhone)){
+								this.$message("号码格式错误")
+								return
+							}
+						}
+						this.isMute = false
+
+						//拨打电话
+						console.log('拨号')
+						this.currentStatusName = "inviting"
+						var _this = this
+						session = userAgent.invite(this.callPhone, options);
+
+						this.$set(this.nSelfInfo, "phone", this.callPhone)
+						this.sipMonitor(session)
+					},
+					clickKey(key) {
+						this.callPhone += key
+					},
+					//sip状态监控
+					sipMonitor(session) {
+						var _this = this
+						//挂断
+						session.on('bye', function (request) {
+							console.log("已经挂断", request)
+
+						});
+						session.on('progress', response => {
+							console.log("progress:", response)
+						})
+						session.on('accepted', function (data) {
+							console.log("accepted:", data)
+							_this.isShowCall = true
+							_this.currentStatusName = "calling"
+						})
+						session.on('rejected', function (response, cause) {
+							_this.currentStatusName = "normal"
+							console.log("rejected:", response, cause)
+						})
+						session.on('failed',  (response, cause) =>{
+							_this.currentStatusName = "normal"
+
+							console.log("failed:", response, cause)
+						})
+						session.on('terminated', function (message, cause) {
+							console.log("terminated:", message, cause)
+						})
+						session.on('cancel', function () {
+
+							console.log("cancel")
+						})
+						session.on('refer', function (request) {
+							console.log("refer:", request)
+						})
+						session.on('replaced', function (newSession) {
+							console.log("replaced:", newSession)
+						})
+						session.on('dtmf', function (request, dtmf) {
+							console.log("dtmf:", request, dtmf)
+						})
+					},
+				},
+				filters: {
+					convertTime: function (value) {
+						if (!value) return ''
+						let ss = value % 60
+						let mm = parseInt(value / 60)
+						let hh = parseInt(mm / 60)
+						return (hh < 10 ? ('0' + hh) : hh) + ":" + (mm < 10 ? ('0' + mm) : mm) + ":" + (ss < 10 ? ('0' + ss) : ss)
+					}
+				},
+		    })
+		</script>
+	</body>
+</html>
